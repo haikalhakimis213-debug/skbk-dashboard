@@ -60,6 +60,7 @@
         <div>
           <label class="text-xs font-black uppercase text-slate-500">Subjek</label>
           <select id="subjectFilter" onchange="renderAll()" class="mt-2 w-full border-2 border-slate-200 rounded-lg p-3 font-bold outline-none focus:border-red-500">
+            <option value="overall">Overall - Semua Subjek</option>
             <option value="bm">BM - Bahasa Melayu</option>
             <option value="bi">BI - Bahasa Inggeris</option>
             <option value="sn">SN - Sains</option>
@@ -205,7 +206,7 @@
 
     function renderSubjectChart(list) {
       const focus = list.filter(s => s.red_focus);
-      const data = SUBJECTS.map(sub => focus.filter(s => isValue(s[sub.key + '_tov_markah']) || isValue(s[sub.key + '_tov_tp'])).length);
+      const data = SUBJECTS.map(sub => focus.filter(s => isSubjectLow(s, sub.key)).length);
       const ctx = byId('subjectChart').getContext('2d');
       destroyChart('subject');
       charts.subject = new Chart(ctx, {
@@ -219,7 +220,10 @@
     }
 
     function renderClassChart(list) {
-      const focus = list.filter(s => s.red_focus);
+      const subject = byId('subjectFilter').value || 'overall';
+      const focus = subject === 'overall'
+        ? list.filter(s => s.red_focus)
+        : list.filter(s => s.red_focus && isSubjectLow(s, subject));
       const classes = [...new Set(focus.map(s => s.kelas))].sort(classSort);
       const data = classes.map(kelas => focus.filter(s => s.kelas === kelas).length);
       const ctx = byId('classChart').getContext('2d');
@@ -235,10 +239,14 @@
     }
 
     function renderFocusList(list) {
-      const subject = byId('subjectFilter').value || 'bm';
-      const focus = list.filter(s => s.red_focus);
+      const subject = byId('subjectFilter').value || 'overall';
+      const focus = subject === 'overall'
+        ? list.filter(s => s.red_focus)
+        : list.filter(s => s.red_focus && isSubjectLow(s, subject));
       byId('focusTitle').innerText = 'Murid Fokus - ' + subjectName(subject);
-      byId('focusSubtitle').innerText = 'Hanya murid yang sel BIL berwarna merah.';
+      byId('focusSubtitle').innerText = subject === 'overall'
+        ? 'Semua murid yang sel BIL berwarna merah.'
+        : 'Murid BIL merah sahaja, dan TOV subjek ini mesti bawah 50 atau TP 1-2.';
 
       byId('focusList').innerHTML = focus.length ? focus.map((s, i) => `
         <div class="border border-red-100 bg-red-50 rounded-lg p-4">
@@ -249,9 +257,7 @@
               <p class="text-xs font-black text-red-600 mt-2">Murid Fokus</p>
             </div>
             <div class="text-right shrink-0">
-              <p class="heading text-2xl font-black text-red-600">${fmt(s[subject + '_tov_markah'])}</p>
-              <p class="text-[10px] font-black text-slate-400 uppercase">Markah</p>
-              <p class="text-sm font-black text-blue-700 mt-1">${tp(s[subject + '_tov_tp'])}</p>
+              ${focusScoreBlock(s, subject)}
             </div>
           </div>
         </div>
@@ -276,6 +282,27 @@
 
     function pair(s, key) {
       return `${show(s[key + '_tov_markah'])} / ${tp(s[key + '_tov_tp'])}`;
+    }
+
+    function isSubjectLow(s, key) {
+      const mark = s[key + '_tov_markah'];
+      const tpValue = s[key + '_tov_tp'];
+      return (isValue(mark) && Number(mark) < 50) || (isValue(tpValue) && Number(tpValue) <= 2);
+    }
+
+    function focusScoreBlock(s, subject) {
+      if (subject === 'overall') {
+        return `
+          <p class="heading text-2xl font-black text-red-600">${fmt(s.avg_tov_markah)}</p>
+          <p class="text-[10px] font-black text-slate-400 uppercase">AVG TOV</p>
+        `;
+      }
+
+      return `
+        <p class="heading text-2xl font-black text-red-600">${fmt(s[subject + '_tov_markah'])}</p>
+        <p class="text-[10px] font-black text-slate-400 uppercase">Markah</p>
+        <p class="text-sm font-black text-blue-700 mt-1">${tp(s[subject + '_tov_tp'])}</p>
+      `;
     }
 
     function statusBadge(status) {
@@ -305,6 +332,7 @@
     }
 
     function subjectName(key) {
+      if (key === 'overall') return 'Overall';
       const sub = SUBJECTS.find(s => s.key === key);
       return sub ? sub.name : key;
     }
