@@ -1,42 +1,33 @@
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1Qq0WnlqWQ2wcUcQOOOBVS5Yeu291BoTOqxJ4TZM2GgM';
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
+const PARSER_VERSION = 'TP12_DIRECT_COLUMNS_V2';
 const ALLOWED_CLASS_YEARS = new Set(['1', '2', '3']);
-const ANALYSIS_CHECKPOINT = 'oti1';
-const ANALYSIS_LABEL = 'OTI1';
 
-// Layout Google Sheet mama untuk Tahun 1-3:
-// BM OTI1/TP = E:F, SAINS OTI1/TP = O:P, M3 OTI1/TP = Y:Z, BI OTI1/TP = AI:AJ.
-// Kerana setiap subjek ada 5 checkpoint pasangan markah/TP (TOV, OTI1, OTI2, OTI3, ETR),
-// fallbackStart perlu mula 2 lajur sebelum OTI1: BM=C, SAINS=M, M3=W, BI=AG.
+// Arahan mama: Tahun 1-3, OTI1 + TP sahaja.
+// Lajur Google Sheet: BM E:F, Sains O:P, M3 Y:Z, BI AI:AJ.
+// Index JS adalah 0-based: E=4, F=5, O=14, P=15, Y=24, Z=25, AI=34, AJ=35.
 const SUBJECTS = [
-  { key: 'bm', code: 'BM', name: 'Bahasa Melayu', aliases: ['bahasa melayu', 'bm'], fallbackStart: 2 },
-  { key: 'sn', code: 'SN', name: 'Sains', aliases: ['sains', 'sn'], fallbackStart: 12 },
-  { key: 'mt', code: 'M3', name: 'Matematik', aliases: ['matematik', 'math', 'm3', 'mt'], fallbackStart: 22 },
-  { key: 'bi', code: 'BI', name: 'Bahasa Inggeris', aliases: ['bahasa inggeris', 'english', 'bi'], fallbackStart: 32 }
-];
-
-const CHECKPOINTS = [
-  { key: 'tov', label: 'TOV' },
-  { key: 'oti1', label: 'OTI1' },
-  { key: 'oti2', label: 'OTI2' },
-  { key: 'oti3', label: 'OTI3' },
-  { key: 'etr', label: 'ETR' }
+  { key: 'bm', code: 'BM', name: 'Bahasa Melayu', markCol: 4, tpCol: 5 },
+  { key: 'sn', code: 'SN', name: 'Sains', markCol: 14, tpCol: 15 },
+  { key: 'mt', code: 'M3', name: 'Matematik', markCol: 24, tpCol: 25 },
+  { key: 'bi', code: 'BI', name: 'Bahasa Inggeris', markCol: 34, tpCol: 35 }
 ];
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=300');
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   try {
     if (!GOOGLE_API_KEY) {
       return res.status(500).json({
         success: false,
+        parserVersion: PARSER_VERSION,
         message: 'Missing GOOGLE_API_KEY in Vercel Environment Variables.'
       });
     }
 
     const meta = await getSheetMetadata();
-    const classSheets = meta.sheets
+    const classSheets = (meta.sheets || [])
       .map(sheet => sheet.properties.title)
       .filter(title => cleanClassName(title));
 
@@ -51,10 +42,7 @@ module.exports = async function handler(req, res) {
 
       const rows = (((sheet.data || [])[0] || {}).rowData || []).map(row => {
         const values = row.values || [];
-        return {
-          values: values.map(cell => String(cell.formattedValue || '').trim()),
-          colors: values.map(cell => cellBackgroundHex(cell))
-        };
+        return values.map(cell => String(cell.formattedValue || '').trim());
       });
 
       students = students.concat(parseClassRows(rows, title, kelas, warnings));
@@ -68,9 +56,11 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
+      parserVersion: PARSER_VERSION,
       message: `${students.length} murid dibaca daripada ${classSheets.length} tab kelas.`,
       lastUpdated: new Date().toLocaleString('ms-MY', { timeZone: 'Asia/Kuala_Lumpur' }),
       sheetNames: classSheets,
+      columns: SUBJECTS.map(s => ({ code: s.code, markCol: columnLetter(s.markCol), tpCol: columnLetter(s.tpCol) })),
       warnings,
       students,
       summary
@@ -78,6 +68,7 @@ module.exports = async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({
       success: false,
+      parserVersion: PARSER_VERSION,
       message: 'Gagal baca Google Sheet.',
       error: String(err && err.stack ? err.stack : err),
       students: [],
@@ -95,13 +86,11 @@ async function getSheetMetadata() {
 
 async function getGridData(sheetNames) {
   if (!sheetNames.length) return { sheets: [] };
-
   const ranges = sheetNames
-    .map(name => `ranges=${encodeURIComponent(`'${name.replace(/'/g, "''")}'!A1:AP140`)}`)
+    .map(name => `ranges=${encodeURIComponent(`'${name.replace(/'/g, "''")}'!A1:AJ160`)}`)
     .join('&');
-  const fields = 'sheets.properties.title,sheets.data.rowData.values.formattedValue,sheets.data.rowData.values.effectiveFormat.backgroundColor,sheets.data.rowData.values.effectiveFormat.backgroundColorStyle.rgbColor';
+  const fields = 'sheets.properties.title,sheets.data.rowData.values.formattedValue';
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?includeGridData=true&${ranges}&fields=${encodeURIComponent(fields)}&key=${GOOGLE_API_KEY}`;
-
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Google Sheets grid error ${response.status}: ${await response.text()}`);
   return response.json();
@@ -109,11 +98,9 @@ async function getGridData(sheetNames) {
 
 function parseClassRows(rows, sheetName, kelas, warnings) {
   const result = [];
-  const values = rows.map(row => row.values);
-  const columnMap = detectColumnMap(values);
 
   for (let r = 0; r < rows.length; r++) {
-    const row = rows[r].values;
+    const row = rows[r] || [];
     const rowText = normalize(row.join(' '));
     if (!rowText || isTrashRow(rowText)) continue;
 
@@ -125,13 +112,13 @@ function parseClassRows(rows, sheetName, kelas, warnings) {
     if (combined.name) {
       nama = cleanName(combined.name);
     } else {
-      const nameIndex = findNameIndex(row, bilIndex, columnMap.firstSubjectStart);
+      const nameIndex = findNameIndex(row, bilIndex);
       if (nameIndex >= 0) nama = cleanName(row[nameIndex]);
     }
 
     if (!nama) continue;
 
-    const student = makeStudent(row, kelas, nama, sheetName, r + 1, columnMap, rows[r].colors, bilIndex);
+    const student = makeStudent(row, kelas, nama, sheetName, r + 1);
     if (isValidStudent(student)) result.push(student);
   }
 
@@ -139,26 +126,7 @@ function parseClassRows(rows, sheetName, kelas, warnings) {
   return result;
 }
 
-function detectColumnMap(values) {
-  const starts = {};
-  SUBJECTS.forEach(sub => { starts[sub.key] = sub.fallbackStart; });
-
-  for (let r = 0; r < Math.min(values.length, 8); r++) {
-    const row = values[r] || [];
-    for (let c = 0; c < row.length; c++) {
-      const cell = normalize(row[c]);
-      if (!cell) continue;
-      SUBJECTS.forEach(sub => {
-        if (sub.aliases.some(alias => cell === alias || cell.includes(alias)) && c > 1) starts[sub.key] = c;
-      });
-    }
-  }
-
-  const subjectStarts = SUBJECTS.map(sub => starts[sub.key]).filter(isRealNumber).map(Number);
-  return { starts, firstSubjectStart: subjectStarts.length ? Math.min(...subjectStarts) : 2 };
-}
-
-function makeStudent(row, kelas, nama, sheetName, sourceRow, columnMap, rowColors, bilIndex) {
+function makeStudent(row, kelas, nama, sheetName, sourceRow) {
   const s = {
     bil: 0,
     original_bil: parseStudentNumber(row[0]),
@@ -167,96 +135,39 @@ function makeStudent(row, kelas, nama, sheetName, sourceRow, columnMap, rowColor
     kelas,
     nama,
     pindah: /\bPINDAH\b/i.test(nama),
-    red_focus: isRedColor(rowColors && rowColors[bilIndex]),
-    missing_tp_count: 0,
-    missing_tp_detail: [],
-    data_points: 0
+    data_points: 0,
+    red_focus: false,
+    status: 'Stabil',
+    fokus_subjek: '-',
+    tp12_subjects: []
   };
 
   SUBJECTS.forEach(sub => {
-    CHECKPOINTS.forEach(cp => {
-      s[`${sub.key}_${cp.key}_markah`] = null;
-      s[`${sub.key}_${cp.key}_tp`] = null;
-    });
-  });
-
-  SUBJECTS.forEach(sub => fillSubject(s, row, sub, columnMap.starts[sub.key]));
-  calculateStudent(s);
-  return s;
-}
-
-function fillSubject(s, row, subject, start) {
-  CHECKPOINTS.forEach((cp, i) => {
-    const markKey = `${subject.key}_${cp.key}_markah`;
-    const tpKey = `${subject.key}_${cp.key}_tp`;
-    const mark = parseMarkah(row[start + (i * 2)]);
-    const tpValue = parseTp(row[start + (i * 2) + 1]);
-
-    s[markKey] = mark;
-    s[tpKey] = tpValue;
-
+    const mark = parseMarkah(row[sub.markCol]);
+    const tp = parseTp(row[sub.tpCol]);
+    s[`${sub.key}_oti1_markah`] = mark;
+    s[`${sub.key}_oti1_tp`] = tp;
     if (isRealNumber(mark)) s.data_points++;
-    if (isRealNumber(tpValue)) s.data_points++;
-
-    if (isRealNumber(mark) && !isRealNumber(tpValue)) {
-      s.missing_tp_count++;
-      s.missing_tp_detail.push(`${subject.code} ${cp.label}`);
-    }
-  });
-}
-
-function calculateStudent(s) {
-  CHECKPOINTS.forEach(cp => {
-    const marks = SUBJECTS.map(sub => s[`${sub.key}_${cp.key}_markah`]).filter(isRealNumber);
-    const tps = SUBJECTS.map(sub => s[`${sub.key}_${cp.key}_tp`]).filter(isRealNumber);
-    s[`avg_${cp.key}_markah`] = average(marks);
-    s[`avg_${cp.key}_tp`] = average(tps);
-    s[`grade_${cp.key}`] = gradeFromMark(s[`avg_${cp.key}_markah`]);
+    if (isRealNumber(tp)) s.data_points++;
+    if (isTp12(tp)) s.tp12_subjects.push(`${sub.code} TP${tp}`);
   });
 
-  s.status = getStudentStatus(s);
-  s.fokus_subjek = getFocusSubject(s);
-  s.tp_semak = s.missing_tp_detail.length ? s.missing_tp_detail.slice(0, 4).join(', ') : '-';
-  s.has_tov_data = hasTovData(s);
-  s.has_oti1_data = hasOti1Data(s);
-}
+  const marks = SUBJECTS.map(sub => s[`${sub.key}_oti1_markah`]).filter(isRealNumber);
+  s.avg_oti1_markah = average(marks);
+  s.has_oti1_data = SUBJECTS.some(sub => isRealNumber(s[`${sub.key}_oti1_markah`]) || isRealNumber(s[`${sub.key}_oti1_tp`]));
+  s.red_focus = s.tp12_subjects.length > 0;
+  s.fokus_subjek = s.tp12_subjects.length ? s.tp12_subjects.join(', ') : '-';
 
-function getStudentStatus(s) {
-  if (s.pindah) return 'Pindah';
-  if (s.red_focus) return 'Murid Fokus';
-  if (s.data_points === 0) return 'Data Tidak Lengkap';
-  if (!hasOti1Data(s)) return 'Data OTI1 Kosong';
-  return 'Stabil';
-}
+  if (s.pindah) s.status = 'Pindah';
+  else if (s.red_focus) s.status = 'TP 1-2';
+  else if (!s.has_oti1_data) s.status = 'Data OTI1 Kosong';
+  else s.status = 'Stabil';
 
-function hasTovData(s) {
-  return SUBJECTS.some(sub => isRealNumber(s[`${sub.key}_tov_markah`]) || isRealNumber(s[`${sub.key}_tov_tp`]));
-}
-
-function hasOti1Data(s) {
-  return SUBJECTS.some(sub => isRealNumber(s[`${sub.key}_oti1_markah`]) || isRealNumber(s[`${sub.key}_oti1_tp`]));
-}
-
-function getFocusSubject(s) {
-  const scored = SUBJECTS.map(sub => {
-    const markah = s[`${sub.key}_${ANALYSIS_CHECKPOINT}_markah`];
-    const tp = s[`${sub.key}_${ANALYSIS_CHECKPOINT}_tp`];
-    return {
-      name: sub.name,
-      markah,
-      tp,
-      score: (isRealNumber(tp) && tp <= 2 ? 20 : 0) + (isRealNumber(markah) && markah < 40 ? 20 : 0)
-    };
-  }).filter(x => isRealNumber(x.markah) || isRealNumber(x.tp));
-
-  if (!scored.length) return '-';
-  scored.sort((a, b) => b.score - a.score || safeNumber(a.markah, 999) - safeNumber(b.markah, 999));
-  return scored[0].score > 0 ? scored[0].name : 'Murid Fokus';
+  return s;
 }
 
 function buildSummary(students, sheetNames, warnings) {
   const classes = unique(students.map(s => s.kelas)).filter(Boolean).sort(classSort);
-  const subjectSummary = SUBJECTS.map(sub => buildSubjectSummary(students, sub));
   const focusStudents = students.filter(s => s.red_focus).sort((a, b) => classSort(a.kelas, b.kelas) || a.sourceRow - b.sourceRow);
 
   return {
@@ -264,68 +175,45 @@ function buildSummary(students, sheetNames, warnings) {
     totalClasses: classes.length,
     totalSheets: sheetNames.length,
     classes,
-    subjectSummary,
+    subjectSummary: SUBJECTS.map(sub => ({
+      key: sub.key,
+      code: sub.code,
+      name: sub.name,
+      avgOti1Mark: average(students.map(s => s[`${sub.key}_oti1_markah`]).filter(isRealNumber)),
+      tp12Count: students.filter(s => isTp12(s[`${sub.key}_oti1_tp`])).length,
+      focusCount: students.filter(s => isTp12(s[`${sub.key}_oti1_tp`])).length
+    })),
     classSummary: classes.map(kelas => {
       const list = students.filter(s => s.kelas === kelas);
       return {
         kelas,
         total: list.length,
         avgOti1Mark: average(list.map(s => s.avg_oti1_markah).filter(isRealNumber)),
+        tp12Count: list.filter(s => s.red_focus).length,
         focusCount: list.filter(s => s.red_focus).length
       };
     }),
     focusStudents,
-    bestStudents: students.filter(s => isRealNumber(s.avg_oti1_markah)).sort((a, b) => b.avg_oti1_markah - a.avg_oti1_markah).slice(0, 10),
     quality: {
-      redFocusCount: focusStudents.length,
+      tp12Count: focusStudents.length,
       emptyOti1Count: students.filter(s => !s.has_oti1_data).length,
-      missingTpCells: sum(students.map(s => s.missing_tp_count)),
       warnings
     },
-    avgTovMark: average(students.map(s => s.avg_tov_markah).filter(isRealNumber)),
-    avgOti1Mark: average(students.map(s => s.avg_oti1_markah).filter(isRealNumber)),
-    avgOti2Mark: average(students.map(s => s.avg_oti2_markah).filter(isRealNumber)),
-    avgOti3Mark: average(students.map(s => s.avg_oti3_markah).filter(isRealNumber)),
-    avgEtrMark: average(students.map(s => s.avg_etr_markah).filter(isRealNumber))
+    avgOti1Mark: average(students.map(s => s.avg_oti1_markah).filter(isRealNumber))
   };
 }
 
-function buildSubjectSummary(students, sub) {
-  return {
-    key: sub.key,
-    code: sub.code,
-    name: sub.name,
-    avgTovMark: average(students.map(s => s[`${sub.key}_tov_markah`]).filter(isRealNumber)),
-    avgOti1Mark: average(students.map(s => s[`${sub.key}_oti1_markah`]).filter(isRealNumber)),
-    avgEtrMark: average(students.map(s => s[`${sub.key}_etr_markah`]).filter(isRealNumber)),
-    focusCount: students.filter(s => s.red_focus).length,
-    redFocusCount: students.filter(s => s.red_focus).length
-  };
-}
-
-function cellBackgroundHex(cell) {
-  const style = (((cell || {}).effectiveFormat || {}).backgroundColorStyle || {}).rgbColor;
-  const bg = style || (((cell || {}).effectiveFormat || {}).backgroundColor);
-  if (!bg) return '#ffffff';
-  const toHex = value => Math.round((value === undefined ? 1 : value) * 255).toString(16).padStart(2, '0');
-  return `#${toHex(bg.red)}${toHex(bg.green)}${toHex(bg.blue)}`;
-}
-
-function isRedColor(color) {
-  const text = String(color || '').trim().toLowerCase();
-  const match = text.match(/^#([0-9a-f]{6})$/);
-  if (!match) return false;
-
-  const r = parseInt(match[1].slice(0, 2), 16);
-  const g = parseInt(match[1].slice(2, 4), 16);
-  const b = parseInt(match[1].slice(4, 6), 16);
-  return r >= 190 && r > g + 20 && r > b + 20;
-}
-
-function isValidStudent(s) {
-  if (!s.nama || !s.kelas) return false;
-  if (isTrashName(s.nama)) return false;
-  return s.data_points > 0;
+function cleanClassName(value) {
+  const text = String(value || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  if (!text || /^(DATA|ANALISIS|RUMUSAN|SENARAI|DASHBOARD)\b/.test(text)) return '';
+  const classNames = 'CERDIK|BIJAK|PINTAR|ARIF|BESTARI|GIGIH|JUJUR|AMANAH|RAJIN|IKHLAS|DINAMIK|KREATIF|CEKAP|GEMILANG|MAJU|SUKSES|INOVATIF';
+  const exact = text.match(new RegExp(`\b([1-6])\s*(${classNames})\b`));
+  if (exact && ALLOWED_CLASS_YEARS.has(exact[1])) return `${exact[1]} ${exact[2]}`;
+  const flexible = text.match(/^([1-6])\s+([A-Z]{3,20})$/);
+  if (flexible && ALLOWED_CLASS_YEARS.has(flexible[1]) && !['DATA', 'ANALISIS', 'RUMUSAN', 'MARKAH', 'MURID', 'KELAS'].includes(flexible[2])) {
+    return `${flexible[1]} ${flexible[2]}`;
+  }
+  return '';
 }
 
 function findBilIndex(row) {
@@ -335,9 +223,9 @@ function findBilIndex(row) {
   return -1;
 }
 
-function findNameIndex(row, bilIndex, firstSubjectStart) {
+function findNameIndex(row, bilIndex) {
   const from = bilIndex + 1;
-  const to = Math.max(from, Math.min(row.length - 1, firstSubjectStart - 1));
+  const to = Math.min(row.length - 1, 3);
   for (let c = from; c <= to; c++) if (cleanName(row[c])) return c;
   return -1;
 }
@@ -364,29 +252,19 @@ function cleanName(value) {
   return text.toUpperCase();
 }
 
+function isValidStudent(s) {
+  if (!s.nama || !s.kelas) return false;
+  if (isTrashName(s.nama)) return false;
+  return s.data_points > 0;
+}
+
 function isTrashName(value) {
   const text = normalize(value);
-  return ['nama', 'nama murid', 'murid', 'kelas', 'bil', 'gred', 'markah', 'tov', 'oti', 'etr', 'tp', 'jumlah', 'purata', 'rumusan', 'analisis'].includes(text);
+  return ['nama', 'nama murid', 'murid', 'kelas', 'bil', 'gred', 'markah', 'tov', 'oti', 'oti1', 'etr', 'tp', 'jumlah', 'purata', 'rumusan', 'analisis'].includes(text);
 }
 
 function isTrashRow(text) {
   return ['jumlah tahap', 'jumlah tp', 'jumlah murid', 'jumlah keseluruhan', 'tahap penguasaan', 'mata pelajaran', 'analisis kelas', 'senarai murid'].some(x => text.includes(x));
-}
-
-function cleanClassName(value) {
-  const text = String(value || '').toUpperCase().replace(/\s+/g, ' ').trim();
-  if (!text || /^(DATA|ANALISIS|RUMUSAN|SENARAI)\b/.test(text)) return '';
-
-  const classNames = 'CERDIK|BIJAK|PINTAR|ARIF|BESTARI|GIGIH|JUJUR|AMANAH|RAJIN|IKHLAS|DINAMIK|KREATIF|CEKAP|GEMILANG|MAJU|SUKSES|INOVATIF';
-  const exact = text.match(new RegExp(`\\b([1-6])\\s*(${classNames})\\b`));
-  if (exact && ALLOWED_CLASS_YEARS.has(exact[1])) return `${exact[1]} ${exact[2]}`;
-
-  const flexible = text.match(/^([1-6])\s+([A-Z]{3,20})$/);
-  if (flexible && ALLOWED_CLASS_YEARS.has(flexible[1]) && !['DATA', 'ANALISIS', 'RUMUSAN', 'MARKAH', 'MURID', 'KELAS'].includes(flexible[2])) {
-    return `${flexible[1]} ${flexible[2]}`;
-  }
-
-  return '';
 }
 
 function parseMarkah(value) {
@@ -404,33 +282,18 @@ function parseTp(value) {
   return /^[1-6](\.0+)?$/.test(text) ? Number(text) : null;
 }
 
-function gradeFromMark(mark) {
-  if (!isRealNumber(mark)) return '-';
-  const n = Number(mark);
-  if (n >= 90) return 'A';
-  if (n >= 75) return 'B';
-  if (n >= 60) return 'C';
-  if (n >= 45) return 'D';
-  if (n >= 31) return 'E';
-  return 'G';
+function isTp12(value) {
+  return isRealNumber(value) && Number(value) >= 1 && Number(value) <= 2;
 }
 
 function average(arr) {
   const clean = arr.filter(isRealNumber).map(Number);
   if (!clean.length) return null;
-  return Math.round((sum(clean) / clean.length) * 100) / 100;
-}
-
-function sum(arr) {
-  return arr.reduce((a, b) => a + Number(b || 0), 0);
+  return Math.round((clean.reduce((a, b) => a + b, 0) / clean.length) * 100) / 100;
 }
 
 function isRealNumber(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
-}
-
-function safeNumber(value, fallback) {
-  return isRealNumber(value) ? Number(value) : fallback;
 }
 
 function normalize(value) {
@@ -462,6 +325,17 @@ function parseClass(kelas) {
   return match ? { year: Number(match[1]), name: match[2] } : { year: 99, name: String(kelas || '') };
 }
 
+function columnLetter(index) {
+  let n = index + 1;
+  let s = '';
+  while (n > 0) {
+    const m = (n - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    n = Math.floor((n - m) / 26);
+  }
+  return s;
+}
+
 function emptySummary() {
   return {
     totalStudents: 0,
@@ -470,7 +344,7 @@ function emptySummary() {
     subjectSummary: [],
     classSummary: [],
     focusStudents: [],
-    bestStudents: [],
-    quality: { redFocusCount: 0, missingTpCells: 0, warnings: [] }
+    quality: { tp12Count: 0, warnings: [] },
+    avgOti1Mark: null
   };
 }
