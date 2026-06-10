@@ -70,8 +70,8 @@
         <div>
           <label class="text-xs font-black uppercase text-slate-500">Paparan</label>
           <select id="modeFilter" onchange="renderAll()" class="mt-2 w-full border-2 border-slate-200 rounded-lg p-3 font-bold outline-none focus:border-red-500">
+            <option value="all" selected>Semua Murid</option>
             <option value="focus">Murid Fokus Sahaja</option>
-            <option value="all">Semua Murid</option>
           </select>
         </div>
         <div>
@@ -180,22 +180,23 @@
     }
 
     function renderAll() {
-      const list = filteredStudents();
-      renderKpis(list);
-      renderSubjectChart(list);
-      renderClassChart(list);
-      renderFocusList(list);
-      renderTable(list);
+      const baseList = filteredStudents(false);
+      const tableList = filteredStudents(true);
+      renderKpis(baseList);
+      renderSubjectChart(baseList);
+      renderClassChart(baseList);
+      renderFocusList(baseList);
+      renderTable(tableList);
     }
 
-    function filteredStudents() {
+    function filteredStudents(applyMode = true) {
       const kelas = byId('classFilter').value || 'ALL';
-      const mode = byId('modeFilter').value || 'focus';
+      const mode = byId('modeFilter').value || 'all';
       const query = byId('searchInput').value.trim().toLowerCase();
 
       return students.filter(s => {
         if (kelas !== 'ALL' && s.kelas !== kelas) return false;
-        if (mode === 'focus' && !s.red_focus) return false;
+        if (applyMode && mode === 'focus' && !s.red_focus) return false;
         if (query && !(s.nama + ' ' + s.kelas).toLowerCase().includes(query)) return false;
         return true;
       });
@@ -249,15 +250,15 @@
         : list.filter(s => s.red_focus && isSubjectLow(s, subject));
       byId('focusTitle').innerText = 'Murid Fokus - ' + subjectName(subject);
       byId('focusSubtitle').innerText = subject === 'overall'
-        ? 'Semua murid yang sel BIL berwarna merah.'
-        : 'Murid BIL merah sahaja, dan markah OTI1 subjek ini mesti bawah 50 atau TP 1-2.';
+        ? 'Murid fokus dikira daripada OTI1: markah bawah 50 atau TP 1-2.'
+        : 'Murid fokus subjek ini: markah OTI1 bawah 50 atau TP 1-2.';
 
       byId('focusList').innerHTML = focus.length ? focus.map((s, i) => `
         <div class="border border-red-100 bg-red-50 rounded-lg p-4">
           <div class="flex justify-between gap-4">
             <div>
               <p class="font-black text-slate-950">${i + 1}. ${escapeHtml(s.nama)}</p>
-              <p class="text-sm text-slate-600 mt-1">${escapeHtml(s.kelas)} | BIL merah</p>
+              <p class="text-sm text-slate-600 mt-1">${escapeHtml(s.kelas)} | Fokus OTI1: ${escapeHtml(s.fokus_subjek || '-')}</p>
               <p class="text-xs font-black text-red-600 mt-2">Murid Fokus</p>
             </div>
             <div class="text-right shrink-0">
@@ -269,6 +270,11 @@
     }
 
     function renderTable(list) {
+      if (!list.length) {
+        byId('dataTable').innerHTML = '<tr><td colspan="9" class="text-center text-slate-500 py-6">Tiada data untuk pilihan filter ini. Cuba tukar Paparan kepada Semua Murid.</td></tr>';
+        return;
+      }
+
       byId('dataTable').innerHTML = list.map(s => `
         <tr class="${s.red_focus ? 'bg-red-50' : 'hover:bg-slate-50'}">
           <td class="font-bold ${s.red_focus ? 'text-red-700' : 'text-slate-400'}">${s.bil}</td>
