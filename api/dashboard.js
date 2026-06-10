@@ -167,8 +167,7 @@ function makeStudent(row, kelas, nama, sheetName, sourceRow, columnMap, rowColor
     kelas,
     nama,
     pindah: /\bPINDAH\b/i.test(nama),
-    bil_red: isRedColor(rowColors && rowColors[bilIndex]),
-    red_focus: false,
+    red_focus: isRedColor(rowColors && rowColors[bilIndex]),
     missing_tp_count: 0,
     missing_tp_detail: [],
     data_points: 0
@@ -215,12 +214,11 @@ function calculateStudent(s) {
     s[`grade_${cp.key}`] = gradeFromMark(s[`avg_${cp.key}_markah`]);
   });
 
+  s.status = getStudentStatus(s);
+  s.fokus_subjek = getFocusSubject(s);
+  s.tp_semak = s.missing_tp_detail.length ? s.missing_tp_detail.slice(0, 4).join(', ') : '-';
   s.has_tov_data = hasTovData(s);
   s.has_oti1_data = hasOti1Data(s);
-  s.fokus_subjek = getFocusSubject(s);
-  s.red_focus = s.fokus_subjek !== '-';
-  s.status = getStudentStatus(s);
-  s.tp_semak = s.missing_tp_detail.length ? s.missing_tp_detail.slice(0, 4).join(', ') : '-';
 }
 
 function getStudentStatus(s) {
@@ -240,30 +238,20 @@ function hasOti1Data(s) {
 }
 
 function getFocusSubject(s) {
-  const focused = SUBJECTS.map(sub => {
+  const scored = SUBJECTS.map(sub => {
     const markah = s[`${sub.key}_${ANALYSIS_CHECKPOINT}_markah`];
     const tp = s[`${sub.key}_${ANALYSIS_CHECKPOINT}_tp`];
-    const lowMark = isRealNumber(markah) && Number(markah) < 50;
-    const lowTp = isRealNumber(tp) && Number(tp) <= 2;
     return {
       name: sub.name,
-      code: sub.code,
       markah,
       tp,
-      score: (lowTp ? 20 : 0) + (lowMark ? 20 : 0),
-      isFocus: lowMark || lowTp
+      score: (isRealNumber(tp) && tp <= 2 ? 20 : 0) + (isRealNumber(markah) && markah < 40 ? 20 : 0)
     };
-  }).filter(x => x.isFocus);
+  }).filter(x => isRealNumber(x.markah) || isRealNumber(x.tp));
 
-  if (!focused.length) return '-';
-  focused.sort((a, b) => b.score - a.score || safeNumber(a.markah, 999) - safeNumber(b.markah, 999));
-  return focused.map(x => x.code).join(', ');
-}
-
-function isOti1SubjectFocus(s, subjectKey) {
-  const markah = s[`${subjectKey}_${ANALYSIS_CHECKPOINT}_markah`];
-  const tp = s[`${subjectKey}_${ANALYSIS_CHECKPOINT}_tp`];
-  return (isRealNumber(markah) && Number(markah) < 50) || (isRealNumber(tp) && Number(tp) <= 2);
+  if (!scored.length) return '-';
+  scored.sort((a, b) => b.score - a.score || safeNumber(a.markah, 999) - safeNumber(b.markah, 999));
+  return scored[0].score > 0 ? scored[0].name : 'Murid Fokus';
 }
 
 function buildSummary(students, sheetNames, warnings) {
@@ -289,7 +277,7 @@ function buildSummary(students, sheetNames, warnings) {
     focusStudents,
     bestStudents: students.filter(s => isRealNumber(s.avg_oti1_markah)).sort((a, b) => b.avg_oti1_markah - a.avg_oti1_markah).slice(0, 10),
     quality: {
-      focusCount: focusStudents.length,
+      redFocusCount: focusStudents.length,
       emptyOti1Count: students.filter(s => !s.has_oti1_data).length,
       missingTpCells: sum(students.map(s => s.missing_tp_count)),
       warnings
@@ -310,8 +298,8 @@ function buildSubjectSummary(students, sub) {
     avgTovMark: average(students.map(s => s[`${sub.key}_tov_markah`]).filter(isRealNumber)),
     avgOti1Mark: average(students.map(s => s[`${sub.key}_oti1_markah`]).filter(isRealNumber)),
     avgEtrMark: average(students.map(s => s[`${sub.key}_etr_markah`]).filter(isRealNumber)),
-    focusCount: students.filter(s => isOti1SubjectFocus(s, sub.key)).length,
-    redFocusCount: students.filter(s => isOti1SubjectFocus(s, sub.key)).length
+    focusCount: students.filter(s => s.red_focus).length,
+    redFocusCount: students.filter(s => s.red_focus).length
   };
 }
 
