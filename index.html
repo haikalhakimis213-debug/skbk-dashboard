@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SK Bukit Kallam - Analisis OTI1 Tahun 1-3</title>
+  <title>SK Bukit Kallam - Tapisan TP 1-2 OTI1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,25 +18,22 @@
     .status-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
     th { background: #0f172a; color: white; font-size: 11px; text-transform: uppercase; padding: 12px; white-space: nowrap; }
     td { padding: 12px; border-bottom: 1px solid #edf2f7; vertical-align: top; }
-    @media print {
-      .no-print { display: none !important; }
-      body { background: white; }
-      .panel, .metric { box-shadow: none; }
-    }
+    @media print { .no-print { display: none !important; } body { background: white; } .panel, .metric { box-shadow: none; } }
   </style>
 </head>
 <body>
   <div id="loading" class="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center text-center px-4">
     <div class="w-14 h-14 rounded-lg bg-red-600 text-white flex items-center justify-center heading font-black text-xl mb-4">SK</div>
-    <h1 class="heading text-xl font-black">Memuatkan Analisis OTI1</h1>
-    <p class="text-sm text-slate-500 mt-2">Membaca Google Sheet Tahun 1-3 serta OTI1 dan TP.</p>
+    <h1 class="heading text-xl font-black">Memuatkan Tapisan TP 1-2</h1>
+    <p class="text-sm text-slate-500 mt-2">BM E:F, Sains O:P, M3 Y:Z, BI AI:AJ.</p>
   </div>
 
   <header class="bg-slate-950 text-white">
     <div class="max-w-7xl mx-auto px-4 py-7 flex flex-col lg:flex-row gap-5 lg:items-end lg:justify-between">
       <div>
         <p class="text-xs font-black text-red-300 uppercase tracking-widest">SK Bukit Kallam</p>
-        <h1 class="heading text-3xl md:text-5xl font-black mt-2">Dashboard OTI1 Tahun 1-3</h1>
+        <h1 class="heading text-3xl md:text-5xl font-black mt-2">Tapisan TP 1-2 OTI1</h1>
+        <p class="text-xs font-black text-emerald-300 mt-2">VERSION: TP12_DIRECT_COLUMNS_V2</p>
         <p id="statusLine" class="text-sm text-slate-300 mt-3">Live Google Sheet via Vercel</p>
       </div>
       <button onclick="window.print()" class="no-print bg-white text-slate-950 px-5 py-3 rounded-lg font-black">Print / PDF</button>
@@ -47,7 +44,7 @@
     <section class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <div class="metric"><p class="text-xs font-black uppercase text-slate-400">Jumlah Murid</p><h2 id="kpiStudents" class="heading text-3xl font-black text-blue-700 mt-2">0</h2></div>
       <div class="metric"><p class="text-xs font-black uppercase text-slate-400">Jumlah Kelas</p><h2 id="kpiClasses" class="heading text-3xl font-black text-orange-600 mt-2">0</h2></div>
-      <div class="metric"><p class="text-xs font-black uppercase text-slate-400">Murid Fokus</p><h2 id="kpiFocus" class="heading text-3xl font-black text-red-600 mt-2">0</h2></div>
+      <div class="metric"><p class="text-xs font-black uppercase text-slate-400">Murid TP 1-2</p><h2 id="kpiFocus" class="heading text-3xl font-black text-red-600 mt-2">0</h2></div>
       <div class="metric"><p class="text-xs font-black uppercase text-slate-400">Avg Markah OTI1</p><h2 id="kpiMark" class="heading text-3xl font-black text-green-700 mt-2">-</h2></div>
     </section>
 
@@ -62,7 +59,7 @@
           <select id="subjectFilter" onchange="renderAll()" class="mt-2 w-full border-2 border-slate-200 rounded-lg p-3 font-bold outline-none focus:border-red-500">
             <option value="overall">Overall - Semua Subjek</option>
             <option value="bm">BM - Bahasa Melayu</option>
-            <option value="sn">SN - Sains</option>
+            <option value="sn">Sains</option>
             <option value="mt">M3 - Matematik</option>
             <option value="bi">BI - Bahasa Inggeris</option>
           </select>
@@ -70,7 +67,7 @@
         <div>
           <label class="text-xs font-black uppercase text-slate-500">Paparan</label>
           <select id="modeFilter" onchange="renderAll()" class="mt-2 w-full border-2 border-slate-200 rounded-lg p-3 font-bold outline-none focus:border-red-500">
-            <option value="focus">Murid Fokus Sahaja</option>
+            <option value="focus">TP 1-2 Sahaja</option>
             <option value="all">Semua Murid</option>
           </select>
         </div>
@@ -83,22 +80,20 @@
 
     <section class="grid lg:grid-cols-2 gap-6 mb-6">
       <div class="panel p-5">
-        <h2 class="heading text-xl font-black mb-4">Murid Fokus Mengikut Subjek OTI1</h2>
+        <h2 class="heading text-xl font-black mb-4">Bilangan TP 1-2 Mengikut Subjek OTI1</h2>
         <div class="chart-box"><canvas id="subjectChart"></canvas></div>
       </div>
       <div class="panel p-5">
-        <h2 class="heading text-xl font-black mb-4">Murid Fokus Mengikut Kelas OTI1</h2>
+        <h2 class="heading text-xl font-black mb-4">Bilangan TP 1-2 Mengikut Kelas OTI1</h2>
         <div class="chart-box"><canvas id="classChart"></canvas></div>
       </div>
     </section>
 
     <section class="panel p-5 mb-6">
-      <div class="flex flex-col lg:flex-row gap-4 lg:items-end lg:justify-between mb-5">
-        <div>
-          <p class="text-xs font-black uppercase tracking-widest text-red-600">Senarai Utama</p>
-          <h2 id="focusTitle" class="heading text-2xl font-black mt-1">Murid Fokus</h2>
-          <p id="focusSubtitle" class="text-sm text-slate-500 mt-1">Hanya murid yang sel BIL berwarna merah.</p>
-        </div>
+      <div class="mb-5">
+        <p class="text-xs font-black uppercase tracking-widest text-red-600">Senarai Utama</p>
+        <h2 id="focusTitle" class="heading text-2xl font-black mt-1">TP 1-2</h2>
+        <p id="focusSubtitle" class="text-sm text-slate-500 mt-1">Tapis murid yang mendapat TP 1 atau TP 2 dalam OTI1.</p>
       </div>
       <div id="focusList" class="grid md:grid-cols-2 gap-3"></div>
     </section>
@@ -106,21 +101,13 @@
     <section class="panel overflow-hidden">
       <div class="p-5 border-b border-slate-200 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
         <h2 class="heading text-xl font-black">Data Penuh</h2>
-        <p class="text-sm text-slate-500">Analisis menggunakan OTI1 dan TP. TP kosong dibiarkan kosong.</p>
+        <p class="text-sm text-slate-500">Tapisan guna TP sahaja. Markah bawah 50 tidak dikira fokus jika TP bukan 1-2.</p>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
           <thead>
             <tr>
-              <th>Bil</th>
-              <th>Nama</th>
-              <th>Kelas</th>
-              <th>BM</th>
-              <th>Sains</th>
-              <th>M3</th>
-              <th>BI</th>
-              <th>Avg</th>
-              <th>Status</th>
+              <th>Bil</th><th>Nama</th><th>Kelas</th><th>BM</th><th>Sains</th><th>M3</th><th>BI</th><th>Avg</th><th>Status</th>
             </tr>
           </thead>
           <tbody id="dataTable"></tbody>
@@ -137,10 +124,6 @@
       { key: 'bi', code: 'BI', name: 'Bahasa Inggeris' }
     ];
 
-    const CHECKPOINTS = [
-      { key: 'oti1', label: 'OTI1' }
-    ];
-
     let students = [];
     let summary = {};
     let charts = {};
@@ -149,13 +132,13 @@
 
     async function loadData() {
       try {
-        const response = await fetch('/api/dashboard');
+        const response = await fetch('/api/dashboard?t=' + Date.now(), { cache: 'no-store' });
         const data = await response.json();
         if (!data.success) throw new Error(data.error || data.message || 'Data gagal dimuatkan.');
 
         students = data.students || [];
         summary = data.summary || {};
-        byId('statusLine').innerText = data.message + ' | Kemaskini: ' + data.lastUpdated;
+        byId('statusLine').innerText = `${data.message} | Kemaskini: ${data.lastUpdated} | Parser: ${data.parserVersion || '-'}`;
         byId('loading').style.display = 'none';
 
         buildFilters();
@@ -174,240 +157,131 @@
     function buildFilters() {
       const select = byId('classFilter');
       select.innerHTML = '<option value="ALL">Semua Kelas</option>';
-      (summary.classes || []).forEach(kelas => {
-        select.innerHTML += `<option value="${escapeAttr(kelas)}">${escapeHtml(kelas)}</option>`;
-      });
+      (summary.classes || []).forEach(kelas => select.innerHTML += `<option value="${escapeAttr(kelas)}">${escapeHtml(kelas)}</option>`);
     }
 
     function renderAll() {
-      const list = filteredStudents();
-      renderKpis(list);
-      renderSubjectChart(list);
-      renderClassChart(list);
-      renderFocusList(list);
-      renderTable(list);
+      const baseList = filteredStudents(false);
+      const tableList = filteredStudents(true);
+      renderKpis();
+      renderSubjectChart(baseList);
+      renderClassChart(baseList);
+      renderFocusList(baseList);
+      renderTable(tableList);
     }
 
-    function filteredStudents() {
+    function filteredStudents(applyMode = true) {
       const kelas = byId('classFilter').value || 'ALL';
       const mode = byId('modeFilter').value || 'focus';
       const query = byId('searchInput').value.trim().toLowerCase();
-
       return students.filter(s => {
         if (kelas !== 'ALL' && s.kelas !== kelas) return false;
-        if (mode === 'focus' && !s.red_focus) return false;
+        if (applyMode && mode === 'focus' && !s.red_focus) return false;
         if (query && !(s.nama + ' ' + s.kelas).toLowerCase().includes(query)) return false;
         return true;
       });
     }
 
-    function renderKpis(list) {
+    function renderKpis() {
       byId('kpiStudents').innerText = students.length;
       byId('kpiClasses').innerText = (summary.classes || []).length;
       byId('kpiFocus').innerText = students.filter(s => s.red_focus).length;
-      byId('kpiMark').innerText = fmt(avg(students.map(studentAvailableAvg).filter(isValue)));
+      byId('kpiMark').innerText = fmt(summary.avgOti1Mark);
     }
 
     function renderSubjectChart(list) {
-      const focus = list.filter(s => s.red_focus);
-      const data = SUBJECTS.map(sub => focus.filter(s => isSubjectLow(s, sub.key)).length);
+      const data = SUBJECTS.map(sub => list.filter(s => isTp12(s[`${sub.key}_oti1_tp`])).length);
       const ctx = byId('subjectChart').getContext('2d');
       destroyChart('subject');
       charts.subject = new Chart(ctx, {
         type: 'bar',
-        data: {
-          labels: SUBJECTS.map(s => s.code),
-          datasets: [{ label: 'Murid Fokus', data, backgroundColor: '#dc2626', borderRadius: 6 }]
-        },
+        data: { labels: SUBJECTS.map(s => s.code), datasets: [{ label: 'TP 1-2', data, backgroundColor: '#dc2626', borderRadius: 6 }] },
         options: chartOptions()
       });
     }
 
     function renderClassChart(list) {
       const subject = byId('subjectFilter').value || 'overall';
-      const focus = subject === 'overall'
-        ? list.filter(s => s.red_focus)
-        : list.filter(s => s.red_focus && isSubjectLow(s, subject));
+      const focus = subject === 'overall' ? list.filter(s => s.red_focus) : list.filter(s => isTp12(s[`${subject}_oti1_tp`]));
       const classes = [...new Set(focus.map(s => s.kelas))].sort(classSort);
       const data = classes.map(kelas => focus.filter(s => s.kelas === kelas).length);
       const ctx = byId('classChart').getContext('2d');
       destroyChart('class');
       charts.class = new Chart(ctx, {
         type: 'bar',
-        data: {
-          labels: classes,
-          datasets: [{ label: 'Murid Fokus', data, backgroundColor: '#1d4ed8', borderRadius: 6 }]
-        },
+        data: { labels: classes, datasets: [{ label: 'TP 1-2', data, backgroundColor: '#1d4ed8', borderRadius: 6 }] },
         options: chartOptions()
       });
     }
 
     function renderFocusList(list) {
       const subject = byId('subjectFilter').value || 'overall';
-      const focus = subject === 'overall'
-        ? list.filter(s => s.red_focus)
-        : list.filter(s => s.red_focus && isSubjectLow(s, subject));
-      byId('focusTitle').innerText = 'Murid Fokus - ' + subjectName(subject);
+      const focus = subject === 'overall' ? list.filter(s => s.red_focus) : list.filter(s => isTp12(s[`${subject}_oti1_tp`]));
+      byId('focusTitle').innerText = 'TP 1-2 - ' + subjectName(subject);
       byId('focusSubtitle').innerText = subject === 'overall'
-        ? 'Semua murid yang sel BIL berwarna merah.'
-        : 'Murid BIL merah sahaja, dan markah OTI1 subjek ini mesti bawah 50 atau TP 1-2.';
-
+        ? 'Senarai murid yang mempunyai TP 1 atau TP 2 dalam BM, Sains, M3 atau BI.'
+        : 'Senarai murid yang mempunyai TP 1 atau TP 2 bagi subjek ini.';
       byId('focusList').innerHTML = focus.length ? focus.map((s, i) => `
         <div class="border border-red-100 bg-red-50 rounded-lg p-4">
           <div class="flex justify-between gap-4">
             <div>
               <p class="font-black text-slate-950">${i + 1}. ${escapeHtml(s.nama)}</p>
-              <p class="text-sm text-slate-600 mt-1">${escapeHtml(s.kelas)} | BIL merah</p>
-              <p class="text-xs font-black text-red-600 mt-2">Murid Fokus</p>
+              <p class="text-sm text-slate-600 mt-1">${escapeHtml(s.kelas)} | ${escapeHtml(s.fokus_subjek || '-')}</p>
+              <p class="text-xs font-black text-red-600 mt-2">TP 1-2</p>
             </div>
-            <div class="text-right shrink-0">
-              ${focusScoreBlock(s, subject)}
-            </div>
+            <div class="text-right shrink-0">${focusScoreBlock(s, subject)}</div>
           </div>
         </div>
-      `).join('') : '<p class="text-sm text-slate-500">Tiada murid fokus untuk pilihan ini.</p>';
+      `).join('') : '<p class="text-sm text-slate-500">Tiada murid TP 1-2 untuk pilihan ini. Cuba pilih Overall atau Semak Data Penuh.</p>';
     }
 
     function renderTable(list) {
+      if (!list.length) {
+        byId('dataTable').innerHTML = '<tr><td colspan="9" class="text-center text-slate-500 py-6">Tiada data untuk filter ini. Tukar Paparan kepada Semua Murid untuk semak data penuh.</td></tr>';
+        return;
+      }
       byId('dataTable').innerHTML = list.map(s => `
         <tr class="${s.red_focus ? 'bg-red-50' : 'hover:bg-slate-50'}">
           <td class="font-bold ${s.red_focus ? 'text-red-700' : 'text-slate-400'}">${s.bil}</td>
           <td class="font-black">${escapeHtml(s.nama)}</td>
           <td class="font-bold text-blue-700">${escapeHtml(s.kelas)}</td>
-          <td>${pair(s, 'bm')}</td>
-          <td>${pair(s, 'sn')}</td>
-          <td>${pair(s, 'mt')}</td>
-          <td>${pair(s, 'bi')}</td>
-          <td class="font-black">${fmt(studentAvailableAvg(s))}</td>
-          <td>${statusBadge(s.status)}</td>
+          <td>${pair(s, 'bm')}</td><td>${pair(s, 'sn')}</td><td>${pair(s, 'mt')}</td><td>${pair(s, 'bi')}</td>
+          <td class="font-black">${fmt(s.avg_oti1_markah)}</td><td>${statusBadge(s.status)}</td>
         </tr>
       `).join('');
     }
 
     function pair(s, key) {
-      const rec = subjectRecord(s, key);
-      if (!isValue(rec.mark) && !isValue(rec.tp)) return '- / ';
-      const label = `<span class="ml-1 text-[10px] font-black text-slate-400">${rec.label}</span>`;
-      return `${show(rec.mark)} / ${tp(rec.tp)}${label}`;
-    }
-
-    function isSubjectLow(s, key) {
-      const rec = subjectRecord(s, key);
-      const mark = rec.mark;
-      const tpValue = rec.tp;
-      return (isValue(mark) && Number(mark) < 50) || (isValue(tpValue) && Number(tpValue) <= 2);
+      const mark = s[key + '_oti1_markah'];
+      const tp = s[key + '_oti1_tp'];
+      if (!isValue(mark) && !isValue(tp)) return '- / -';
+      const cls = isTp12(tp) ? 'text-red-700 font-black' : 'text-slate-700';
+      return `<span class="${cls}">${show(mark)} / ${tpText(tp)}</span>`;
     }
 
     function focusScoreBlock(s, subject) {
-      if (subject === 'overall') {
-        return `
-          <p class="heading text-2xl font-black text-red-600">${fmt(studentAvailableAvg(s))}</p>
-          <p class="text-[10px] font-black text-slate-400 uppercase">AVG</p>
-        `;
-      }
-
-      const rec = subjectRecord(s, subject);
-      return `
-        <p class="heading text-2xl font-black text-red-600">${fmt(rec.mark)}</p>
-        <p class="text-[10px] font-black text-slate-400 uppercase">Markah ${rec.label || ''}</p>
-        <p class="text-sm font-black text-blue-700 mt-1">${tp(rec.tp)}</p>
-      `;
-    }
-
-    function subjectRecord(s, subjectKey) {
-      const mark = s[subjectKey + '_oti1_markah'];
-      const tpValue = s[subjectKey + '_oti1_tp'];
-      return { mark, tp: tpValue, label: 'OTI1' };
-    }
-
-    function studentAvailableAvg(s) {
-      const marks = SUBJECTS.map(sub => subjectRecord(s, sub.key).mark).filter(isValue);
-      return avg(marks);
+      if (subject === 'overall') return `<p class="text-sm font-black text-red-600">${escapeHtml(s.fokus_subjek || '-')}</p><p class="text-[10px] font-black text-slate-400 uppercase">Subjek TP 1-2</p>`;
+      return `<p class="heading text-2xl font-black text-red-600">${tpText(s[subject + '_oti1_tp'])}</p><p class="text-[10px] font-black text-slate-400 uppercase">OTI1</p>`;
     }
 
     function statusBadge(status) {
-      const cls = status === 'Murid Fokus'
-        ? 'bg-red-600 text-white'
-        : status === 'Pindah'
-          ? 'bg-slate-100 text-slate-500'
-          : status === 'Data OTI1 Kosong'
-            ? 'bg-amber-50 text-amber-700'
-            : status === 'Data Tidak Lengkap'
-              ? 'bg-slate-100 text-slate-700'
-              : 'bg-green-50 text-green-700';
+      const cls = status === 'TP 1-2' ? 'bg-red-600 text-white' : status === 'Pindah' ? 'bg-slate-100 text-slate-500' : status === 'Data OTI1 Kosong' ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
       return `<span class="status-pill ${cls}">${escapeHtml(status || '-')}</span>`;
     }
 
-    function chartOptions() {
-      return {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eef2f7' } },
-          x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } }
-        }
-      };
-    }
-
-    function destroyChart(key) {
-      if (charts[key]) charts[key].destroy();
-      charts[key] = null;
-    }
-
-    function subjectName(key) {
-      if (key === 'overall') return 'Overall';
-      const sub = SUBJECTS.find(s => s.key === key);
-      return sub ? sub.name : key;
-    }
-
-    function fmt(value) {
-      if (!isValue(value)) return '-';
-      const num = Number(value);
-      return Number.isInteger(num) ? String(num) : num.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-    }
-
-    function show(value) {
-      return isValue(value) ? fmt(value) : '-';
-    }
-
-    function tp(value) {
-      return isValue(value) ? 'TP ' + fmt(value) : '';
-    }
-
-    function avg(arr) {
-      const clean = arr.filter(isValue).map(Number);
-      if (!clean.length) return null;
-      return clean.reduce((a, b) => a + b, 0) / clean.length;
-    }
-
-    function isValue(value) {
-      return value !== null && value !== undefined && value !== '' && !isNaN(Number(value));
-    }
-
-    function byId(id) {
-      return document.getElementById(id);
-    }
-
-    function classSort(a, b) {
-      const pa = parseClass(a);
-      const pb = parseClass(b);
-      if (pa.year !== pb.year) return pa.year - pb.year;
-      return pa.name.localeCompare(pb.name);
-    }
-
-    function parseClass(kelas) {
-      const match = String(kelas || '').match(/^(\d+)\s+(.+)$/);
-      return match ? { year: Number(match[1]), name: match[2] } : { year: 99, name: String(kelas || '') };
-    }
-
-    function escapeHtml(value) {
-      return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-    }
-
-    function escapeAttr(value) {
-      return escapeHtml(value).replace(/`/g, '&#096;');
-    }
+    function chartOptions() { return { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eef2f7' } }, x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } } } }; }
+    function destroyChart(key) { if (charts[key]) charts[key].destroy(); charts[key] = null; }
+    function subjectName(key) { if (key === 'overall') return 'Overall'; const sub = SUBJECTS.find(s => s.key === key); return sub ? sub.name : key; }
+    function fmt(value) { if (!isValue(value)) return '-'; const num = Number(value); return Number.isInteger(num) ? String(num) : num.toFixed(2).replace(/0+$/, '').replace(/\.$/, ''); }
+    function show(value) { return isValue(value) ? fmt(value) : '-'; }
+    function tpText(value) { return isValue(value) ? 'TP ' + fmt(value) : '-'; }
+    function isTp12(value) { return isValue(value) && Number(value) >= 1 && Number(value) <= 2; }
+    function isValue(value) { return value !== null && value !== undefined && value !== '' && !isNaN(Number(value)); }
+    function byId(id) { return document.getElementById(id); }
+    function classSort(a, b) { const pa = parseClass(a); const pb = parseClass(b); if (pa.year !== pb.year) return pa.year - pb.year; return pa.name.localeCompare(pb.name); }
+    function parseClass(kelas) { const match = String(kelas || '').match(/^(\d+)\s+(.+)$/); return match ? { year: Number(match[1]), name: match[2] } : { year: 99, name: String(kelas || '') }; }
+    function escapeHtml(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
+    function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#096;'); }
   </script>
 </body>
 </html>
